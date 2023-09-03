@@ -1,0 +1,14 @@
+[package]
+name = "event-source"
+description = "Zero cost async immeidate event dispatching"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["storycraft <storycraft@pancake.sh>"]
+
+[dependencies]
+higher-kinded-types = "0.1.1"
+parking_lot = "0.12.1"
+pin-list = "0.1.0"
+pin-project-lite = "0.2.13"
+unique = "0.9.1"
