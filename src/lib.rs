@@ -23,8 +23,8 @@ use unique::Unique;
 
 #[macro_export]
 macro_rules! EventSource {
-    ($tt: tt) => {
-        ::event_source::EventSource<::event_source::__private::ForLt!($tt)>
+    ($ty: ty) => {
+        ::event_source::EventSource<::event_source::__private::ForLt!($ty)>
     };
 }
 
@@ -55,10 +55,10 @@ impl<T: ForLifetime> EventSource<T> {
         }
     }
 
-    pub fn on<F: FnMut(&mut T::Of<'_>) -> Option<()> + Send>(
-        &self,
-        listener: F,
-    ) -> EventFnFuture<F, T> {
+    pub fn on<F>(&self, listener: F) -> EventFnFuture<F, T>
+    where
+        F: FnMut(&mut T::Of<'_>) -> Option<()> + Send + Sync,
+    {
         EventFnFuture {
             source: self,
             listener,
@@ -66,10 +66,11 @@ impl<T: ForLifetime> EventSource<T> {
         }
     }
 
-    pub async fn once<F: FnMut(&mut T::Of<'_>) -> Option<R> + Send, R: Send>(
-        &self,
-        mut listener: F,
-    ) -> R {
+    pub async fn once<F, R>(&self, mut listener: F) -> R
+    where
+        F: FnMut(&mut T::Of<'_>) -> Option<R> + Send + Sync,
+        R: Send + Sync,
+    {
         let mut res = None;
 
         self.on(|event| {
