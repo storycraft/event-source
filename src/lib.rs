@@ -24,7 +24,7 @@ use unique::Unique;
 #[macro_export]
 macro_rules! EventSource {
     ($($ty: tt)*) => {
-        ::event_source::EventSource<::event_source::__private::ForLt!($($ty)*)>
+        $crate::EventSource<$crate::__private::ForLt!($($ty)*)>
     };
 }
 
