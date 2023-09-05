@@ -56,17 +56,6 @@ impl<T: ForLifetime> EventSource<T> {
         });
     }
 
-    pub fn emit<'a>(&self, event: T::Of<'a>)
-    where
-        T::Of<'a>: Clone,
-    {
-        self.with_emitter(
-            |mut emitter| {
-                while emitter.emit_next(event.clone()).is_some() {}
-            },
-        );
-    }
-
     pub fn on<F>(&self, listener: F) -> EventFnFuture<F, T>
     where
         F: FnMut(T::Of<'_>) -> Option<()> + Send + Sync,
@@ -142,6 +131,7 @@ type PinList<T> = pin_list::PinList<NodeTypes<T>>;
 type Node<T> = pin_list::Node<NodeTypes<T>>;
 
 pin_project_lite::pin_project!(
+    #[project(!Unpin)]
     #[derive(Debug)]
     #[must_use = "futures do nothing unless you `.await` or poll them"]
     pub struct EventFnFuture<'a, F, T: ForLifetime> {
