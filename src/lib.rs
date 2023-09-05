@@ -12,14 +12,13 @@ use std::{
     future::Future,
     mem,
     pin::Pin,
-    task::{Context, Poll, Waker},
+    task::{Context, Poll, Waker}, ptr::NonNull,
 };
 
 use higher_kinded_types::ForLifetime;
 use parking_lot::Mutex;
 
 use pin_list::{id::Unchecked, CursorMut};
-use unique::Unique;
 
 #[macro_export]
 macro_rules! EventSource {
@@ -39,6 +38,12 @@ pub struct EventSource<T: ForLifetime> {
     list: Mutex<PinList<T>>,
 }
 
+// SAFETY: EventSource doesn't own any data
+unsafe impl<T: ForLifetime> Send for EventSource<T> {}
+
+// SAFETY: Sync guaranteed by Mutex
+unsafe impl<T: ForLifetime> Sync for EventSource<T> {}
+
 impl<T: ForLifetime> EventSource<T> {
     pub const fn new() -> Self {
         Self {
@@ -56,7 +61,7 @@ impl<T: ForLifetime> EventSource<T> {
 
     pub fn on<F>(&self, listener: F) -> EventFnFuture<F, T>
     where
-        F: FnMut(T::Of<'_>) -> Option<()> + Send + Sync,
+        F: FnMut(T::Of<'_>) -> Option<()> + Sync,
     {
         EventFnFuture {
             source: self,
@@ -67,8 +72,8 @@ impl<T: ForLifetime> EventSource<T> {
 
     pub async fn once<F, R>(&self, mut listener: F) -> R
     where
-        F: FnMut(T::Of<'_>) -> Option<R> + Send + Sync,
-        R: Send + Sync,
+        F: FnMut(T::Of<'_>) -> Option<R> + Sync,
+        R: Sync,
     {
         let mut res = None;
 
@@ -154,7 +159,10 @@ pin_project_lite::pin_project!(
     }
 );
 
-impl<'a, T: ForLifetime, F: FnMut(T::Of<'_>) -> Option<()> + Send + Sync> Future
+// SAFETY: Everything in EventFnFuture is safe to send and closure is Send
+unsafe impl<F: Send, T: ForLifetime> Send for EventFnFuture<'_, F, T> {}
+
+impl<'a, T: ForLifetime, F: FnMut(T::Of<'_>) -> Option<()>> Future
     for EventFnFuture<'a, F, T>
 {
     type Output = ();
@@ -184,13 +192,13 @@ impl<'a, T: ForLifetime, F: FnMut(T::Of<'_>) -> Option<()> + Send + Sync> Future
 }
 
 type DynClosure<'closure, T> =
-    dyn for<'a> FnMut(<T as ForLifetime>::Of<'a>) -> Option<()> + Send + Sync + 'closure;
+    dyn for<'a> FnMut(<T as ForLifetime>::Of<'a>) -> Option<()> + 'closure;
 
 #[derive(Debug)]
 struct ListenerItem<T: ForLifetime> {
     done: bool,
     waker: Option<Waker>,
-    closure_ptr: Unique<DynClosure<'static, T>>,
+    closure_ptr: NonNull<DynClosure<'static, T>>,
 }
 
 impl<T: ForLifetime> ListenerItem<T> {
@@ -204,7 +212,7 @@ impl<T: ForLifetime> ListenerItem<T> {
 
             // SAFETY: See ListenerItem::poll for safety requirement
             closure_ptr: unsafe {
-                mem::transmute::<Unique<_>, Unique<_>>(Unique::from(closure_ptr))
+                mem::transmute::<NonNull<_>, NonNull<_>>(NonNull::from(closure_ptr))
             },
         }
     }
