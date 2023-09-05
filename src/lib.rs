@@ -31,9 +31,7 @@ macro_rules! EventSource {
 #[macro_export]
 macro_rules! emit {
     ($source: expr, $event: expr) => {
-        $source.with_emitter(
-            |mut emitter| while emitter.emit_next($event).is_some() {}
-        );
+        $source.with_emitter(|mut emitter| while emitter.emit_next($event).is_some() {});
     };
 }
 
