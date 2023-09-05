@@ -18,13 +18,22 @@ use std::{
 use higher_kinded_types::ForLifetime;
 use parking_lot::Mutex;
 
-use pin_list::id::Unchecked;
+use pin_list::{id::Unchecked, CursorMut};
 use unique::Unique;
 
 #[macro_export]
 macro_rules! EventSource {
-    ($ty: ty) => {
-        ::event_source::EventSource<::event_source::__private::ForLt!($ty)>
+    ($($ty: tt)*) => {
+        ::event_source::EventSource<::event_source::__private::ForLt!($($ty)*)>
+    };
+}
+
+#[macro_export]
+macro_rules! emit {
+    ($source: expr, $event: expr) => {
+        $source.with_emitter(
+            |mut emitter| while emitter.emit_next($event).is_some() {}
+        );
     };
 }
 
@@ -39,25 +48,28 @@ impl<T: ForLifetime> EventSource<T> {
         }
     }
 
-    pub fn emit(&self, mut event: T::Of<'_>) {
+    pub fn with_emitter(&self, emit_fn: impl FnOnce(EventEmitter<T>)) {
         let mut list = self.list.lock();
 
-        let mut cursor = list.cursor_front_mut();
-        while let Some(node) = cursor.protected_mut() {
-            // SAFETY: Closure is pinned and the pointer is valid
-            if unsafe { node.poll(&mut event) } {
-                if let Some(waker) = node.waker.take() {
-                    waker.wake();
-                }
-            }
+        emit_fn(EventEmitter {
+            cursor: list.cursor_front_mut(),
+        });
+    }
 
-            cursor.move_next();
-        }
+    pub fn emit<'a>(&self, event: T::Of<'a>)
+    where
+        T::Of<'a>: Clone,
+    {
+        self.with_emitter(
+            |mut emitter| {
+                while emitter.emit_next(event.clone()).is_some() {}
+            },
+        );
     }
 
     pub fn on<F>(&self, listener: F) -> EventFnFuture<F, T>
     where
-        F: FnMut(&mut T::Of<'_>) -> Option<()> + Send + Sync,
+        F: FnMut(T::Of<'_>) -> Option<()> + Send + Sync,
     {
         EventFnFuture {
             source: self,
@@ -68,7 +80,7 @@ impl<T: ForLifetime> EventSource<T> {
 
     pub async fn once<F, R>(&self, mut listener: F) -> R
     where
-        F: FnMut(&mut T::Of<'_>) -> Option<R> + Send + Sync,
+        F: FnMut(T::Of<'_>) -> Option<R> + Send + Sync,
         R: Send + Sync,
     {
         let mut res = None;
@@ -93,6 +105,28 @@ impl<T: ForLifetime> Debug for EventSource<T> {
         f.debug_struct("EventSource")
             .field("list", &self.list)
             .finish()
+    }
+}
+
+#[derive(Debug)]
+pub struct EventEmitter<'a, T: ForLifetime> {
+    cursor: CursorMut<'a, NodeTypes<T>>,
+}
+
+impl<T: ForLifetime> EventEmitter<'_, T> {
+    pub fn emit_next(&mut self, event: T::Of<'_>) -> Option<()> {
+        let node = self.cursor.protected_mut()?;
+
+        // SAFETY: Closure is pinned and the pointer is valid
+        if unsafe { node.poll(event) } {
+            if let Some(waker) = node.waker.take() {
+                waker.wake();
+            }
+        }
+
+        self.cursor.move_next();
+
+        Some(())
     }
 }
 
@@ -132,7 +166,7 @@ pin_project_lite::pin_project!(
     }
 );
 
-impl<'a, T: ForLifetime, F: FnMut(&mut T::Of<'_>) -> Option<()> + Send> Future
+impl<'a, T: ForLifetime, F: FnMut(T::Of<'_>) -> Option<()> + Send + Sync> Future
     for EventFnFuture<'a, F, T>
 {
     type Output = ();
@@ -162,7 +196,7 @@ impl<'a, T: ForLifetime, F: FnMut(&mut T::Of<'_>) -> Option<()> + Send> Future
 }
 
 type DynClosure<'closure, T> =
-    dyn for<'a, 'b> FnMut(&'a mut <T as ForLifetime>::Of<'b>) -> Option<()> + Send + 'closure;
+    dyn for<'a> FnMut(<T as ForLifetime>::Of<'a>) -> Option<()> + Send + Sync + 'closure;
 
 #[derive(Debug)]
 struct ListenerItem<T: ForLifetime> {
@@ -199,7 +233,7 @@ impl<T: ForLifetime> ListenerItem<T> {
 
     /// # Safety
     /// Calling this method is only safe if pointer of closure is valid
-    unsafe fn poll(&mut self, event: &mut T::Of<'_>) -> bool {
+    unsafe fn poll(&mut self, event: T::Of<'_>) -> bool {
         if self.closure_ptr.as_mut()(event).is_some() && !self.done {
             self.done = true;
         }
