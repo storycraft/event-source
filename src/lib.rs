@@ -56,7 +56,7 @@ impl<T: ForLifetime> EventSource<T> {
 
     pub fn on<F>(&self, listener: F) -> EventFnFuture<F, T>
     where
-        F: FnMut(T::Of<'_>) -> Option<()> + Send + Sync,
+        F: FnMut(T::Of<'_>) -> Option<()> + Sync,
     {
         EventFnFuture {
             source: self,
@@ -67,8 +67,8 @@ impl<T: ForLifetime> EventSource<T> {
 
     pub async fn once<F, R>(&self, mut listener: F) -> R
     where
-        F: FnMut(T::Of<'_>) -> Option<R> + Send + Sync,
-        R: Send + Sync,
+        F: FnMut(T::Of<'_>) -> Option<R> + Sync,
+        R: Sync,
     {
         let mut res = None;
 
@@ -154,7 +154,7 @@ pin_project_lite::pin_project!(
     }
 );
 
-impl<'a, T: ForLifetime, F: FnMut(T::Of<'_>) -> Option<()> + Send + Sync> Future
+impl<'a, T: ForLifetime, F: FnMut(T::Of<'_>) -> Option<()> + Sync> Future
     for EventFnFuture<'a, F, T>
 {
     type Output = ();
@@ -184,7 +184,7 @@ impl<'a, T: ForLifetime, F: FnMut(T::Of<'_>) -> Option<()> + Send + Sync> Future
 }
 
 type DynClosure<'closure, T> =
-    dyn for<'a> FnMut(<T as ForLifetime>::Of<'a>) -> Option<()> + Send + Sync + 'closure;
+    dyn for<'a> FnMut(<T as ForLifetime>::Of<'a>) -> Option<()> + Sync + 'closure;
 
 #[derive(Debug)]
 struct ListenerItem<T: ForLifetime> {
