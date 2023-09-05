@@ -162,6 +162,9 @@ pin_project_lite::pin_project!(
 // SAFETY: Everything in EventFnFuture is safe to send and closure is Send
 unsafe impl<F: Send, T: ForLifetime> Send for EventFnFuture<'_, F, T> {}
 
+// SAFETY: Everything in EventFnFuture is safe to sync and closure is Sync
+unsafe impl<F: Sync, T: ForLifetime> Sync for EventFnFuture<'_, F, T> {}
+
 impl<'a, T: ForLifetime, F: FnMut(T::Of<'_>) -> Option<()>> Future
     for EventFnFuture<'a, F, T>
 {
