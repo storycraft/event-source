@@ -56,7 +56,7 @@ impl<T: ForLifetime> EventSource<T> {
 
     pub fn on<F>(&self, listener: F) -> EventFnFuture<F, T>
     where
-        F: FnMut(T::Of<'_>) -> Option<()> + Sync,
+        F: FnMut(T::Of<'_>) -> Option<()> + Send + Sync,
     {
         EventFnFuture {
             source: self,
