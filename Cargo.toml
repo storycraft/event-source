@@ -5,6 +5,9 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 authors = ["storycraft <storycraft@pancake.sh>"]
+repository = "https://github.com/storycraft/event-source"
+keywords = ["event", "async"]
+categories = ["asynchronous", ]
 
 [dependencies]
 higher-kinded-types = "0.1.1"

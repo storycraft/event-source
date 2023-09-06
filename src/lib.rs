@@ -4,13 +4,15 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
+#![no_std]
+
 #![doc = include_str!("../README.md")]
 
 #[doc(hidden)]
 pub mod __private;
 
-use std::{
-    fmt::Debug,
+use core::{
+    fmt::{Debug, self},
     future::Future,
     mem,
     pin::Pin,
@@ -105,7 +107,7 @@ impl<T: ForLifetime> EventSource<T> {
 }
 
 impl<T: ForLifetime> Debug for EventSource<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("EventSource")
             .field("list", &self.list)
             .finish()

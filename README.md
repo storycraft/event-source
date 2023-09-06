@@ -1,6 +1,8 @@
 # EventSource
 Zero cost non buffered async event emitter
 
+This crate is no_std
+
 ## Example
 ```rust
 async fn main() {
