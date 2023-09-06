@@ -4,6 +4,8 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
+#![doc = include_str!("../README.md")]
+
 #[doc(hidden)]
 pub mod __private;
 
@@ -21,6 +23,7 @@ use parking_lot::Mutex;
 use pin_list::{id::Unchecked, CursorMut};
 
 #[macro_export]
+/// Higher kinded type helper for [`EventSource`]
 macro_rules! EventSource {
     ($($ty: tt)*) => {
         $crate::EventSource<$crate::__private::ForLt!($($ty)*)>
@@ -28,12 +31,14 @@ macro_rules! EventSource {
 }
 
 #[macro_export]
+/// Emit event. As methods can't do mutable reborrowing correctly, you should use this macro.
 macro_rules! emit {
     ($source: expr, $event: expr) => {
         $source.with_emitter(|mut emitter| while emitter.emit_next($event).is_some() {});
     };
 }
 
+/// Event source
 pub struct EventSource<T: ForLifetime> {
     list: Mutex<PinList<T>>,
 }
@@ -45,6 +50,7 @@ unsafe impl<T: ForLifetime> Send for EventSource<T> {}
 unsafe impl<T: ForLifetime> Sync for EventSource<T> {}
 
 impl<T: ForLifetime> EventSource<T> {
+    /// Create new [`EventSource`]
     pub const fn new() -> Self {
         Self {
             list: Mutex::new(PinList::new(unsafe { Unchecked::new() })),
@@ -59,6 +65,9 @@ impl<T: ForLifetime> EventSource<T> {
         });
     }
 
+    /// Listen event until listener returns [`Option::Some`]
+    /// 
+    /// It can be called after woken if another event occurred before task continue.
     pub fn on<F>(&self, listener: F) -> EventFnFuture<F, T>
     where
         F: FnMut(T::Of<'_>) -> Option<()> + Sync,
@@ -70,6 +79,9 @@ impl<T: ForLifetime> EventSource<T> {
         }
     }
 
+    /// Listen event until listener returns [`Option::Some`]
+    /// 
+    /// Unlike [`EventSource::on`] it will ignore every events once listener returns with [`Option::Some`].
     pub async fn once<F, R>(&self, mut listener: F) -> R
     where
         F: FnMut(T::Of<'_>) -> Option<R> + Sync,

@@ -1,6 +1,6 @@
 [package]
 name = "event-source"
-description = "Zero cost async immeidate event dispatching"
+description = "Zero cost async immediate event dispatching"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
