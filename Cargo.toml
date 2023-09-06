@@ -1,13 +1,13 @@
 [package]
 name = "event-source"
 description = "Zero cost async immediate event dispatching"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "MIT"
 authors = ["storycraft <storycraft@pancake.sh>"]
 repository = "https://github.com/storycraft/event-source"
 keywords = ["event", "async"]
-categories = ["asynchronous", ]
+categories = ["asynchronous"]
 
 [dependencies]
 higher-kinded-types = "0.1.1"
