@@ -39,7 +39,7 @@ async fn async_main() {
 
                 sleep(Duration::from_secs(2)).await;
 
-                let _ = source
+                source
                     .on(|a| {
                         dbg!(a);
                         Some(())
@@ -49,7 +49,7 @@ async fn async_main() {
         }
     });
 
-    let _ = source
+    source
         .on(|a| {
             dbg!(a);
             None
