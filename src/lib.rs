@@ -179,7 +179,7 @@ unsafe impl<F: Send, T: ForLifetime> Send for EventFnFuture<'_, F, T> {}
 // SAFETY: Everything in EventFnFuture is safe to sync and closure is Sync
 unsafe impl<F: Sync, T: ForLifetime> Sync for EventFnFuture<'_, F, T> {}
 
-impl<'a, T: ForLifetime, F: FnMut(T::Of<'_>) -> Option<()>> Future
+impl<'a, T: ForLifetime, F: FnMut(T::Of<'_>) -> Option<()> + Sync> Future
     for EventFnFuture<'a, F, T>
 {
     type Output = ();
