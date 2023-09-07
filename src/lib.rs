@@ -23,7 +23,7 @@ use pin_list::{id::Unchecked, CursorMut};
 use types::{NodeTypes, PinList};
 
 #[macro_export]
-/// Higher kinded type helper for [`EventSource`]
+/// Higher kinded type helper for [`struct@EventSource`]
 macro_rules! EventSource {
     ($($ty: tt)*) => {
         $crate::EventSource<$crate::__private::ForLt!($($ty)*)>
@@ -58,7 +58,7 @@ impl<T: ForLifetime> Debug for EventSource<T> {
 }
 
 impl<T: ForLifetime> EventSource<T> {
-    /// Create new [`EventSource`]
+    /// Create new [`struct@EventSource`]
     pub const fn new() -> Self {
         Self {
             // SAFETY: There is only one variant of [`Pinlist`]
@@ -66,6 +66,7 @@ impl<T: ForLifetime> EventSource<T> {
         }
     }
 
+    /// Create [`EventEmitter`] for this [`struct@EventSource`]
     pub fn with_emitter(&self, emit_fn: impl FnOnce(EventEmitter<T>)) {
         let mut list = self.list.lock();
 
@@ -109,12 +110,14 @@ impl<T: ForLifetime> EventSource<T> {
     }
 }
 
+/// Struct for emitting different value for each listeners
 #[derive(Debug)]
 pub struct EventEmitter<'a, T: ForLifetime> {
     cursor: CursorMut<'a, NodeTypes<T>>,
 }
 
 impl<T: ForLifetime> EventEmitter<'_, T> {
+    /// Emit event to next listener
     pub fn emit_next(&mut self, event: T::Of<'_>) -> Option<()> {
         let node = self.cursor.protected_mut()?;
 
