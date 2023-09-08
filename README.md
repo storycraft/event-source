@@ -36,7 +36,12 @@ async fn main() {
     println!("Output: {}", output);
 }
 ```
-This code outputs `Output: 35`
+
+Output
+```text
+Event emiited with value: 35!
+Output: 35
+```
 
 ## License
 MIT
