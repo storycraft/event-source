@@ -111,7 +111,7 @@ impl<T: ForLifetime> EventSource<T> {
     }
 }
 
-/// Struct for emitting different value for each listeners
+/// Struct for emitting values for each listeners
 #[derive(Debug)]
 pub struct EventEmitter<'a, T: ForLifetime> {
     cursor: CursorMut<'a, NodeTypes<T>>,
