@@ -81,7 +81,7 @@ impl<T: ForLifetime> EventSource<T> {
     /// It can be called after woken if another event occurred before task continue.
     pub fn on<F>(&self, listener: F) -> EventFnFuture<F, T>
     where
-        F: FnMut(T::Of<'_>, ControlFlow) + Sync,
+        F: FnMut(T::Of<'_>, &mut ControlFlow) + Sync,
     {
         EventFnFuture::new(self, listener)
     }
@@ -91,17 +91,17 @@ impl<T: ForLifetime> EventSource<T> {
     /// Unlike [`EventSource::on`] it will ignore every events once listener returns with [`Option::Some`].
     pub async fn once<F, R>(&self, mut listener: F) -> R
     where
-        F: FnMut(T::Of<'_>) -> Option<R> + Sync,
+        F: FnMut(T::Of<'_>, &mut ControlFlow) -> Option<R> + Sync,
         R: Sync,
     {
         let mut res = None;
 
-        self.on(|event, mut flow| {
+        self.on(|event, flow| {
             if flow.done() {
                 return;
             }
 
-            if let output @ Some(_) = listener(event) {
+            if let output @ Some(_) = listener(event, flow) {
                 res = output;
                 flow.set_done();
             }
@@ -124,7 +124,7 @@ impl<T: ForLifetime> EventEmitter<'_, T> {
         let node = self.cursor.protected_mut()?;
 
         // SAFETY: Closure is pinned and the pointer is valid
-        if !unsafe { node.poll(event) } {
+        if unsafe { !node.poll(event) } {
             return None;
         }
 

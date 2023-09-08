@@ -58,7 +58,7 @@ unsafe impl<F: Send, T: ForLifetime> Send for EventFnFuture<'_, F, T> {}
 // SAFETY: Everything in EventFnFuture is safe to sync and closure is Sync
 unsafe impl<F: Sync, T: ForLifetime> Sync for EventFnFuture<'_, F, T> {}
 
-impl<'a, T: ForLifetime, F: FnMut(T::Of<'_>, ControlFlow) + Sync> Future
+impl<'a, T: ForLifetime, F: FnMut(T::Of<'_>, &mut ControlFlow) + Sync> Future
     for EventFnFuture<'a, F, T>
 {
     type Output = ();
@@ -87,7 +87,7 @@ impl<'a, T: ForLifetime, F: FnMut(T::Of<'_>, ControlFlow) + Sync> Future
 }
 
 type DynClosure<'closure, T> =
-    dyn for<'a, 'b> FnMut(<T as ForLifetime>::Of<'a>, ControlFlow<'b>) + 'closure;
+    dyn for<'a, 'b> FnMut(<T as ForLifetime>::Of<'a>, &'b mut ControlFlow) + 'closure;
 
 #[derive(Debug)]
 pub(crate) struct ListenerItem<T: ForLifetime> {
@@ -120,49 +120,49 @@ impl<T: ForLifetime> ListenerItem<T> {
     /// # Safety
     /// Calling this method is only safe if pointer of closure is valid
     pub unsafe fn poll(&mut self, event: T::Of<'_>) -> bool {
-        let mut propagation = true;
+        let mut flow = ControlFlow {
+            done: self.done,
+            propagation: true,
+        };
 
-        self.closure_ptr.as_mut()(
-            event,
-            ControlFlow {
-                done: &mut self.done,
-                propagation: &mut propagation,
-            },
-        );
+        self.closure_ptr.as_mut()(event, &mut flow);
 
-        if self.done {
+        if flow.done && !self.done {
+            self.done = true;
+
             if let Some(waker) = self.waker.take() {
                 waker.wake();
             }
         }
 
-        propagation
+        flow.propagation
     }
 }
 
 /// Control current event listener behaviour
 #[derive(Debug)]
-pub struct ControlFlow<'a> {
-    done: &'a mut bool,
-    propagation: &'a mut bool,
+pub struct ControlFlow {
+    done: bool,
+    propagation: bool,
 }
 
-impl ControlFlow<'_> {
-    /// Stop propagation of the current event 
+impl ControlFlow {
+    /// Stop propagation of the current event
     pub fn stop_propagation(&mut self) {
-        if *self.propagation {
-            *self.propagation = false;
+        if self.propagation {
+            self.propagation = false;
         }
     }
+
     /// Check if listener is finished already
     pub const fn done(&self) -> bool {
-        *self.done
+        self.done
     }
 
     /// Mark listener as finished
     pub fn set_done(&mut self) {
-        if !*self.done {
-            *self.done = true;
+        if !self.done {
+            self.done = true;
         }
     }
 }
