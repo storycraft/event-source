@@ -21,5 +21,5 @@ impl<T: ?Sized> Sealed<T> {
     }
 }
 
-// SAFETY: Getting inner value without usnig pointer is impossible
+// SAFETY: Getting inner value without using pointer is impossible
 unsafe impl<T: ?Sized> Sync for Sealed<T> {}
