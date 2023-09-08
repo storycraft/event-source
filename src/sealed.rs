@@ -16,8 +16,8 @@ impl<T> Sealed<T> {
 }
 
 impl<T: ?Sized> Sealed<T> {
-    pub fn get_ptr(&self) -> NonNull<T> {
-        NonNull::from(&self.0)
+    pub fn get_ptr(&mut self) -> NonNull<T> {
+        NonNull::from(&mut self.0)
     }
 }
 
