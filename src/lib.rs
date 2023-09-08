@@ -88,7 +88,7 @@ impl<T: ForLifetime> EventSource<T> {
 
     /// Listen event until listener returns [`Option::Some`]
     ///
-    /// Unlike [`EventSource::on`] it will ignore every events once listener returns with [`Option::Some`].
+    /// Unlike [`EventSource::on`] it will ignore every events once listener is done or returns with [`Option::Some`].
     pub async fn once<F, R>(&self, mut listener: F) -> Option<R>
     where
         F: FnMut(T::Of<'_>, &mut ControlFlow) -> Option<R> + Sync,
