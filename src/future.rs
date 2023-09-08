@@ -53,12 +53,6 @@ impl<'a, T: ForLifetime, F> EventFnFuture<'a, F, T> {
     }
 }
 
-// SAFETY: Everything in EventFnFuture is safe to send and closure is Send
-unsafe impl<F: Send, T: ForLifetime> Send for EventFnFuture<'_, F, T> {}
-
-// SAFETY: Everything in EventFnFuture is safe to sync and closure is Sync
-unsafe impl<F: Sync, T: ForLifetime> Sync for EventFnFuture<'_, F, T> {}
-
 impl<'a, T: ForLifetime, F: FnMut(T::Of<'_>, &mut ControlFlow) + Sync> Future
     for EventFnFuture<'a, F, T>
 {
@@ -96,6 +90,12 @@ pub struct ListenerItem<T: ForLifetime> {
     waker: Option<Waker>,
     closure_ptr: NonNull<DynClosure<'static, T>>,
 }
+
+// SAFETY: Every data in ListenerItem is Send
+unsafe impl<T: ForLifetime> Send for ListenerItem<T> {}
+
+// SAFETY: Every data in ListenerItem is Sync
+unsafe impl<T: ForLifetime> Sync for ListenerItem<T> {}
 
 impl<T: ForLifetime> ListenerItem<T> {
     fn new(closure_ptr: NonNull<DynClosure<T>>) -> Self {

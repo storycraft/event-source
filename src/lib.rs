@@ -45,12 +45,6 @@ pub struct EventSource<T: ForLifetime> {
     list: Mutex<PinList<T>>,
 }
 
-// SAFETY: EventSource doesn't own any non Send data
-unsafe impl<T: ForLifetime> Send for EventSource<T> {}
-
-// SAFETY: Sync guaranteed by Mutex
-unsafe impl<T: ForLifetime> Sync for EventSource<T> {}
-
 impl<T: ForLifetime> Debug for EventSource<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("EventSource")
@@ -118,11 +112,6 @@ impl<T: ForLifetime> EventSource<T> {
 pub struct EventEmitter<'a, T: ForLifetime> {
     cursor: CursorMut<'a, NodeTypes<T>>,
 }
-
-// SAFETY: Like EventSource, EventEmitter doesn't own any non Send data
-unsafe impl<T: ForLifetime> Send for EventEmitter<'_, T> {}
-
-unsafe impl<T: ForLifetime> Sync for EventEmitter<'_, T> {}
 
 impl<T: ForLifetime> EventEmitter<'_, T> {
     /// Emit event to next listener
