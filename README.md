@@ -3,6 +3,12 @@ Zero cost non buffered async event emitter
 
 This crate is no_std
 
+## Features
+1. Non buffered, immediate event dispatch
+2. Zero cost listener adding, removing 
+3. Higher kinded event type
+4. Propagation control
+
 ## Example
 ```rust ignore
 async fn main() {
@@ -19,7 +25,7 @@ async fn main() {
 
     let mut output = 0;
     // Closure can contain reference!
-    source.on(|value, mut flow| {
+    source.on(|value, flow| {
         println!("Event emiited with value: {}!", value);
         output = *value;
 
