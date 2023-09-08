@@ -23,7 +23,6 @@ async fn main() {
         println!("Event emiited with value: {}!", value);
         output = *value;
 
-
         // mark listener as finished
         flow.set_done();
     }).await;
