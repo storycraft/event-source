@@ -20,6 +20,7 @@ pin_project_lite::pin_project!(
     #[project(!Unpin)]
     #[derive(Debug)]
     #[must_use = "futures do nothing unless you `.await` or poll them"]
+    /// Future created with [`EventSource::on`]
     pub struct EventFnFuture<'a, F, T: ForLifetime> {
         source: &'a EventSource<T>,
 
@@ -90,7 +91,7 @@ type DynClosure<'closure, T> =
     dyn for<'a, 'b> FnMut(<T as ForLifetime>::Of<'a>, &'b mut ControlFlow) + 'closure;
 
 #[derive(Debug)]
-pub(crate) struct ListenerItem<T: ForLifetime> {
+pub struct ListenerItem<T: ForLifetime> {
     done: bool,
     waker: Option<Waker>,
     closure_ptr: NonNull<DynClosure<'static, T>>,
@@ -139,8 +140,8 @@ impl<T: ForLifetime> ListenerItem<T> {
     }
 }
 
-/// Control current event listener behaviour
 #[derive(Debug)]
+/// Control current listener's behaviour
 pub struct ControlFlow {
     done: bool,
     propagation: bool,

@@ -9,13 +9,14 @@
 
 #[doc(hidden)]
 pub mod __private;
-pub mod future;
+mod future;
 mod sealed;
 mod types;
 
+pub use future::{ControlFlow, EventFnFuture};
+
 use core::fmt::{self, Debug};
 
-use future::{ControlFlow, EventFnFuture};
 use higher_kinded_types::ForLifetime;
 use parking_lot::Mutex;
 
@@ -76,7 +77,7 @@ impl<T: ForLifetime> EventSource<T> {
         });
     }
 
-    /// Listen event
+    /// Listen events
     ///
     /// It can be called after woken if another event occurred before task continue.
     pub fn on<F>(&self, listener: F) -> EventFnFuture<F, T>
