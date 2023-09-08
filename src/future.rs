@@ -105,7 +105,7 @@ impl<T: ForLifetime> ListenerItem<T> {
             done: false,
             waker: None,
 
-            // SAFETY: See ListenerItem::poll for safety requirement
+            // SAFETY: Extend lifetime, see ListenerItem::poll for safety requirement
             closure_ptr: unsafe { mem::transmute::<NonNull<_>, NonNull<_>>(closure_ptr) },
         }
     }
