@@ -15,7 +15,7 @@ mod types;
 
 use core::fmt::{self, Debug};
 
-use future::EventFnFuture;
+use future::{ControlFlow, EventFnFuture};
 use higher_kinded_types::ForLifetime;
 use parking_lot::Mutex;
 
@@ -76,12 +76,12 @@ impl<T: ForLifetime> EventSource<T> {
         });
     }
 
-    /// Listen event until listener returns [`Option::Some`]
+    /// Listen event
     ///
     /// It can be called after woken if another event occurred before task continue.
     pub fn on<F>(&self, listener: F) -> EventFnFuture<F, T>
     where
-        F: FnMut(T::Of<'_>) -> Option<()> + Sync,
+        F: FnMut(T::Of<'_>, ControlFlow) + Sync,
     {
         EventFnFuture::new(self, listener)
     }
@@ -96,18 +96,19 @@ impl<T: ForLifetime> EventSource<T> {
     {
         let mut res = None;
 
-        self.on(|event| {
-            if res.is_some() {
-                return None;
+        self.on(|event, mut flow| {
+            if flow.done() {
+                return;
             }
 
             listener(event).map(|output| {
                 res = Some(output);
-            })
+                flow.set_done();
+            });
         })
         .await;
 
-        res.unwrap()
+        res.unwrap_or_else(|| unreachable!())
     }
 }
 
@@ -123,10 +124,8 @@ impl<T: ForLifetime> EventEmitter<'_, T> {
         let node = self.cursor.protected_mut()?;
 
         // SAFETY: Closure is pinned and the pointer is valid
-        if unsafe { node.poll(event) } {
-            if let Some(waker) = node.take_waker() {
-                waker.wake();
-            }
+        if !unsafe { node.poll(event) } {
+            return None;
         }
 
         self.cursor.move_next();

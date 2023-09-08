@@ -40,9 +40,9 @@ async fn async_main() {
                 sleep(Duration::from_secs(2)).await;
 
                 source
-                    .on(|a| {
+                    .on(|a, mut flow| {
+                        flow.set_done();
                         dbg!(a);
-                        Some(())
                     })
                     .await;
             }
@@ -50,9 +50,8 @@ async fn async_main() {
     });
 
     source
-        .on(|a| {
+        .on(|a, _| {
             dbg!(a);
-            None
         })
         .await;
 }
