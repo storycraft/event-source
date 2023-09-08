@@ -10,8 +10,8 @@
 #[doc(hidden)]
 pub mod __private;
 pub mod future;
-mod types;
 mod sealed;
+mod types;
 
 use core::fmt::{self, Debug};
 

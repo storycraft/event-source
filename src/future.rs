@@ -97,10 +97,7 @@ pub(crate) struct ListenerItem<T: ForLifetime> {
 }
 
 impl<T: ForLifetime> ListenerItem<T> {
-    fn new<'a>(closure_ptr: NonNull<DynClosure<T>>) -> Self
-    where
-        T: 'a,
-    {
+    fn new(closure_ptr: NonNull<DynClosure<T>>) -> Self {
         Self {
             done: false,
             waker: None,
