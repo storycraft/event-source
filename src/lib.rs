@@ -89,12 +89,12 @@ impl<T: ForLifetime> EventSource<T> {
     /// Listen event until listener returns [`Option::Some`]
     ///
     /// Unlike [`EventSource::on`] it will ignore every events once listener returns with [`Option::Some`].
-    pub async fn once<F, R>(&self, mut listener: F) -> R
+    pub async fn once<F, R>(&self, mut listener: F) -> Option<R>
     where
         F: FnMut(T::Of<'_>, &mut ControlFlow) -> Option<R> + Sync,
         R: Sync,
     {
-        let mut res = None;
+        let mut out = None;
 
         self.on(|event, flow| {
             if flow.done() {
@@ -102,13 +102,13 @@ impl<T: ForLifetime> EventSource<T> {
             }
 
             if let output @ Some(_) = listener(event, flow) {
-                res = output;
+                out = output;
                 flow.set_done();
             }
         })
         .await;
 
-        res.unwrap_or_else(|| unreachable!())
+        out
     }
 }
 
