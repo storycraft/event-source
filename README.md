@@ -4,7 +4,7 @@ Zero cost non buffered async event emitter
 This crate is no_std
 
 ## Example
-```rust
+```rust ignore
 async fn main() {
     let source: Arc<EventSource!(&mut i32)> = Arc::new(EventSource::new());
 
@@ -19,11 +19,13 @@ async fn main() {
 
     let mut output = 0;
     // Closure can contain reference!
-    source.on(|value| {
+    source.on(|value, mut flow| {
         println!("Event emiited with value: {}!", value);
         output = *value;
 
-        Some(())
+
+        // mark listener as finished
+        flow.set_done();
     }).await;
 
     println!("Output: {}", output);
