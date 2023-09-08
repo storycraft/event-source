@@ -75,7 +75,7 @@ impl<T: ForLifetime> EventSource<T> {
     ///
     /// It can be called after woken if another event occurred before task continue.
     /// 
-    /// Closure must be [`Sync`] to be called safely
+    /// Closure must be [`Sync`]
     pub fn on<F>(&self, listener: F) -> EventFnFuture<F, T>
     where
         F: FnMut(T::Of<'_>, &mut ControlFlow) + Sync,
