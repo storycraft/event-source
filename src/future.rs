@@ -14,7 +14,7 @@ use core::{
 
 use higher_kinded_types::ForLifetime;
 
-use crate::{types::Node, EventSource};
+use crate::{sealed::Sealed, types::Node, EventSource};
 
 pin_project_lite::pin_project!(
     #[project(!Unpin)]
@@ -23,8 +23,7 @@ pin_project_lite::pin_project!(
     pub struct EventFnFuture<'a, F, T: ForLifetime> {
         source: &'a EventSource<T>,
 
-        #[pin]
-        listener: F,
+        listener: Sealed<F>,
 
         #[pin]
         node: Node<T>,
@@ -47,7 +46,7 @@ impl<'a, T: ForLifetime, F> EventFnFuture<'a, F, T> {
     pub(super) const fn new(source: &'a EventSource<T>, listener: F) -> Self {
         Self {
             source,
-            listener,
+            listener: Sealed::new(listener),
             node: pin_list::Node::new(),
         }
     }
@@ -71,7 +70,7 @@ impl<'a, T: ForLifetime, F: FnMut(T::Of<'_>) -> Option<()> + Sync> Future
         let node = {
             let initialized = match this.node.as_mut().initialized_mut() {
                 Some(initialized) => initialized,
-                None => list.push_back(this.node, ListenerItem::new(this.listener), ()),
+                None => list.push_back(this.node, ListenerItem::new(this.listener.get_ptr()), ()),
             };
 
             initialized.protected_mut(&mut list).unwrap()
@@ -98,7 +97,7 @@ pub(crate) struct ListenerItem<T: ForLifetime> {
 }
 
 impl<T: ForLifetime> ListenerItem<T> {
-    fn new<'a>(closure_ptr: Pin<&'a mut DynClosure<T>>) -> Self
+    fn new<'a>(closure_ptr: NonNull<DynClosure<T>>) -> Self
     where
         T: 'a,
     {
@@ -107,9 +106,7 @@ impl<T: ForLifetime> ListenerItem<T> {
             waker: None,
 
             // SAFETY: See ListenerItem::poll for safety requirement
-            closure_ptr: unsafe {
-                mem::transmute::<NonNull<_>, NonNull<_>>(NonNull::from(&*closure_ptr))
-            },
+            closure_ptr: unsafe { mem::transmute::<NonNull<_>, NonNull<_>>(closure_ptr) },
         }
     }
 

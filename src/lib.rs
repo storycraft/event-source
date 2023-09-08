@@ -11,6 +11,7 @@
 pub mod __private;
 pub mod future;
 mod types;
+mod sealed;
 
 use core::fmt::{self, Debug};
 
