@@ -6,7 +6,7 @@
 
 use core::ptr::NonNull;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct Sealed<T: ?Sized>(T);
 
 impl<T> Sealed<T> {
