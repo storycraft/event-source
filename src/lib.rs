@@ -101,10 +101,10 @@ impl<T: ForLifetime> EventSource<T> {
                 return;
             }
 
-            listener(event).map(|output| {
-                res = Some(output);
+            if let output @ Some(_) = listener(event) {
+                res = output;
                 flow.set_done();
-            });
+            }
         })
         .await;
 
