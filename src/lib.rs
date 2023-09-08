@@ -74,6 +74,8 @@ impl<T: ForLifetime> EventSource<T> {
     /// Listen events
     ///
     /// It can be called after woken if another event occurred before task continue.
+    /// 
+    /// Closure must be [`Sync`] to be called safely
     pub fn on<F>(&self, listener: F) -> EventFnFuture<F, T>
     where
         F: FnMut(T::Of<'_>, &mut ControlFlow) + Sync,
@@ -118,7 +120,7 @@ impl<T: ForLifetime> EventEmitter<'_, T> {
     pub fn emit_next(&mut self, event: T::Of<'_>) -> Option<()> {
         let node = self.cursor.protected_mut()?;
 
-        // SAFETY: Closure is pinned and the pointer is valid
+        // SAFETY: Every listener closure is Sync and the pointer is valid
         if unsafe { !node.poll(event) } {
             return None;
         }

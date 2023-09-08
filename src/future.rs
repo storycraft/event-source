@@ -53,7 +53,7 @@ impl<'a, T: ForLifetime, F> EventFnFuture<'a, F, T> {
     }
 }
 
-impl<'a, T: ForLifetime, F: FnMut(T::Of<'_>, &mut ControlFlow) + Sync> Future
+impl<'a, T: ForLifetime, F: FnMut(T::Of<'_>, &mut ControlFlow)> Future
     for EventFnFuture<'a, F, T>
 {
     type Output = ();
@@ -65,7 +65,7 @@ impl<'a, T: ForLifetime, F: FnMut(T::Of<'_>, &mut ControlFlow) + Sync> Future
         let node = {
             let initialized = match this.node.as_mut().initialized_mut() {
                 Some(initialized) => initialized,
-                None => list.push_back(this.node, ListenerItem::new(this.listener.get_ptr()), ()),
+                None => list.push_back(this.node, ListenerItem::new(this.listener.get_mut()), ()),
             };
 
             initialized.protected_mut(&mut list).unwrap()
@@ -98,13 +98,18 @@ unsafe impl<T: ForLifetime> Send for ListenerItem<T> {}
 unsafe impl<T: ForLifetime> Sync for ListenerItem<T> {}
 
 impl<T: ForLifetime> ListenerItem<T> {
-    fn new(closure_ptr: NonNull<DynClosure<T>>) -> Self {
+    fn new<'a>(closure: &'a mut DynClosure<T>) -> Self
+    where
+        T: 'a,
+    {
         Self {
             done: false,
             waker: None,
 
             // SAFETY: Extend lifetime, see ListenerItem::poll for safety requirement
-            closure_ptr: unsafe { mem::transmute::<NonNull<_>, NonNull<_>>(closure_ptr) },
+            closure_ptr: unsafe {
+                mem::transmute::<NonNull<_>, NonNull<_>>(NonNull::from(closure))
+            },
         }
     }
 
@@ -119,7 +124,9 @@ impl<T: ForLifetime> ListenerItem<T> {
     }
 
     /// # Safety
-    /// Calling this method is only safe if pointer of closure is valid
+    /// Calling this method is only safe if
+    /// 1. Pointer of closure is valid
+    /// 2. When called on other thread, Sync bounds must be fulfilled
     pub unsafe fn poll(&mut self, event: T::Of<'_>) -> bool {
         let mut flow = ControlFlow {
             done: self.done,
