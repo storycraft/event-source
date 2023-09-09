@@ -12,6 +12,7 @@ use core::{
 };
 
 use higher_kinded_types::ForLifetime;
+use sync_wrapper::SyncWrapper;
 use unique::Unique;
 
 use crate::{sealed::Sealed, types::Node, EventSource};
@@ -53,7 +54,7 @@ impl<'a, T: ForLifetime, F> EventFnFuture<'a, F, T> {
     }
 }
 
-impl<'a, T: ForLifetime, F: FnMut(T::Of<'_>, &mut ControlFlow) + Send + Sync> Future
+impl<'a, T: ForLifetime, F: FnMut(T::Of<'_>, &mut ControlFlow) + Send> Future
     for EventFnFuture<'a, F, T>
 {
     type Output = ();
@@ -88,13 +89,13 @@ impl<'a, T: ForLifetime, F: FnMut(T::Of<'_>, &mut ControlFlow) + Send + Sync> Fu
 }
 
 type DynClosure<'closure, T> =
-    dyn for<'a, 'b> FnMut(<T as ForLifetime>::Of<'a>, &'b mut ControlFlow) + Send + Sync + 'closure;
+    dyn for<'a, 'b> FnMut(<T as ForLifetime>::Of<'a>, &'b mut ControlFlow) + Send + 'closure;
 
 #[derive(Debug)]
 pub struct ListenerItem<T: ForLifetime> {
     done: bool,
     waker: Option<Waker>,
-    closure_ptr: Unique<DynClosure<'static, T>>,
+    closure_ptr: SyncWrapper<Unique<DynClosure<'static, T>>>,
 }
 
 impl<T: ForLifetime> ListenerItem<T> {
@@ -104,7 +105,7 @@ impl<T: ForLifetime> ListenerItem<T> {
             waker: None,
 
             // SAFETY: Extend lifetime and manage manually, see ListenerItem::poll for safety requirement
-            closure_ptr: unsafe { mem::transmute::<Unique<_>, Unique<_>>(closure) },
+            closure_ptr: SyncWrapper::new(unsafe { mem::transmute::<Unique<_>, Unique<_>>(closure) }),
         }
     }
 
@@ -126,7 +127,7 @@ impl<T: ForLifetime> ListenerItem<T> {
             propagation: true,
         };
 
-        self.closure_ptr.as_mut()(event, &mut flow);
+        self.closure_ptr.get_mut().as_mut()(event, &mut flow);
 
         if flow.done && !self.done {
             self.done = true;

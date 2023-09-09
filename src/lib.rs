@@ -76,7 +76,7 @@ impl<T: ForLifetime> EventSource<T> {
     /// It can be called after woken if another event occurred before task continue
     pub fn on<F>(&self, listener: F) -> EventFnFuture<F, T>
     where
-        F: FnMut(T::Of<'_>, &mut ControlFlow) + Send + Sync,
+        F: FnMut(T::Of<'_>, &mut ControlFlow) + Send,
     {
         EventFnFuture::new(self, listener)
     }
@@ -86,8 +86,8 @@ impl<T: ForLifetime> EventSource<T> {
     /// Unlike [`EventSource::on`] it will ignore every events once listener is done or returns with [`Option::Some`].
     pub async fn once<F, R>(&self, mut listener: F) -> Option<R>
     where
-        F: FnMut(T::Of<'_>, &mut ControlFlow) -> Option<R> + Send + Sync,
-        R: Send + Sync,
+        F: FnMut(T::Of<'_>, &mut ControlFlow) -> Option<R> + Send,
+        R: Send,
     {
         let mut out = None;
 
