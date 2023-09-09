@@ -18,13 +18,13 @@ use sync_wrapper::SyncWrapper;
 use crate::{sealed::Sealed, types::Node, EventSource};
 
 pin_project_lite::pin_project!(
-    #[project(!Unpin)]
     #[derive(Debug)]
     #[must_use = "futures do nothing unless you `.await` or poll them"]
     /// Future created with [`EventSource::on`]
     pub struct EventFnFuture<'a, F, T: ForLifetime> {
         source: &'a EventSource<T>,
 
+        #[pin]
         listener: Sealed<F>,
 
         #[pin]

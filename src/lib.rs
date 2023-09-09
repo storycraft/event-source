@@ -10,8 +10,8 @@
 #[doc(hidden)]
 pub mod __private;
 mod future;
-mod types;
 mod sealed;
+mod types;
 
 pub use future::{ControlFlow, EventFnFuture};
 
@@ -74,7 +74,7 @@ impl<T: ForLifetime> EventSource<T> {
     /// Listen events
     ///
     /// It can be called after woken if another event occurred before task continue.
-    /// 
+    ///
     /// Closure must be [`Sync`]
     pub fn on<F>(&self, listener: F) -> EventFnFuture<F, T>
     where

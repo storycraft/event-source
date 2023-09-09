@@ -4,19 +4,24 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
-use core::ptr::NonNull;
+use core::{pin::Pin, ptr::NonNull};
 
-#[derive(Debug)]
-pub struct Sealed<T: ?Sized>(T);
+pin_project_lite::pin_project! {
+    #[project(!Unpin)]
+    #[derive(Debug)]
+    pub struct Sealed<T: ?Sized> {
+        inner: T,
+    }
+}
 
 impl<T> Sealed<T> {
-    pub const fn new(value: T) -> Self {
-        Self(value)
+    pub const fn new(inner: T) -> Self {
+        Self { inner }
     }
 }
 
 impl<T: ?Sized> Sealed<T> {
-    pub fn get_ptr_mut(&mut self) -> NonNull<T> {
-        NonNull::from(&mut self.0)
+    pub fn get_ptr_mut(self: Pin<&mut Self>) -> NonNull<T> {
+        NonNull::from(self.project().inner)
     }
 }
