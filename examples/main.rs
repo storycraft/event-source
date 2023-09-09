@@ -1,57 +1,34 @@
 use std::{sync::Arc, time::Duration};
 
 use event_source::{emit, EventSource};
-use tokio::{runtime::Builder, spawn, time::sleep};
+use tokio::{spawn, time::sleep};
 
-fn main() {
-    Builder::new_multi_thread()
-        .enable_time()
-        .build()
-        .unwrap()
-        .block_on(async_main());
+fn spawn_emit_task(source: &Arc<EventSource!(&mut i32)>, value: i32, interval: Duration) {
+    spawn({
+        let source = source.clone();
+
+        async move {
+            let mut value = value;
+
+            loop {
+                emit!(source, &mut value);
+
+                sleep(interval).await;
+            }
+        }
+    });
 }
 
-async fn async_main() {
+#[tokio::main]
+async fn main() {
     let source: Arc<EventSource!(&mut i32)> = Arc::new(EventSource::new());
 
-    spawn({
-        let source = source.clone();
-
-        async move {
-            let mut a = 5;
-
-            loop {
-                emit!(source, &mut a);
-
-                sleep(Duration::from_secs(1)).await;
-            }
-        }
-    });
-
-    spawn({
-        let source = source.clone();
-
-        async move {
-            let mut a = 19;
-
-            loop {
-                emit!(source, &mut a);
-
-                sleep(Duration::from_secs(2)).await;
-
-                source
-                    .on(|a, flow| {
-                        flow.set_done();
-                        dbg!(a);
-                    })
-                    .await;
-            }
-        }
-    });
+    spawn_emit_task(&source, 5, Duration::from_millis(300));
+    spawn_emit_task(&source, 10, Duration::from_millis(1000));
 
     source
-        .on(|a, _| {
-            dbg!(a);
+        .on(|value, _| {
+            dbg!(value);
         })
         .await;
 }
