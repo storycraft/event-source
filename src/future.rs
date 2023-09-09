@@ -8,12 +8,11 @@ use core::{
     future::Future,
     mem,
     pin::Pin,
-    ptr::NonNull,
     task::{Context, Poll, Waker},
 };
 
 use higher_kinded_types::ForLifetime;
-use sync_wrapper::SyncWrapper;
+use unique::Unique;
 
 use crate::{sealed::Sealed, types::Node, EventSource};
 
@@ -54,7 +53,9 @@ impl<'a, T: ForLifetime, F> EventFnFuture<'a, F, T> {
     }
 }
 
-impl<'a, T: ForLifetime, F: FnMut(T::Of<'_>, &mut ControlFlow)> Future for EventFnFuture<'a, F, T> {
+impl<'a, T: ForLifetime, F: FnMut(T::Of<'_>, &mut ControlFlow) + Send + Sync> Future
+    for EventFnFuture<'a, F, T>
+{
     type Output = ();
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -66,14 +67,15 @@ impl<'a, T: ForLifetime, F: FnMut(T::Of<'_>, &mut ControlFlow)> Future for Event
                 Some(initialized) => initialized,
                 None => list.push_back(
                     this.node,
-                    SyncWrapper::new(ListenerItem::new(this.listener.get_ptr_mut())),
+                    ListenerItem::new(
+                        Unique::new(this.listener.get_ptr_mut().as_ptr() as _).unwrap(),
+                    ),
                     (),
                 ),
             };
 
             initialized.protected_mut(&mut list).unwrap()
-        }
-        .get_mut();
+        };
 
         if node.done {
             return Poll::Ready(());
@@ -86,29 +88,29 @@ impl<'a, T: ForLifetime, F: FnMut(T::Of<'_>, &mut ControlFlow)> Future for Event
 }
 
 type DynClosure<'closure, T> =
-    dyn for<'a, 'b> FnMut(<T as ForLifetime>::Of<'a>, &'b mut ControlFlow) + 'closure;
+    dyn for<'a, 'b> FnMut(<T as ForLifetime>::Of<'a>, &'b mut ControlFlow) + Send + Sync + 'closure;
 
 #[derive(Debug)]
 pub struct ListenerItem<T: ForLifetime> {
     done: bool,
     waker: Option<Waker>,
-    closure_ptr: NonNull<DynClosure<'static, T>>,
+    closure_ptr: Unique<DynClosure<'static, T>>,
 }
 
 // SAFETY: Every data in ListenerItem is Send
 unsafe impl<T: ForLifetime> Send for ListenerItem<T> {}
 
+// SAFETY: Every data in ListenerItem is Sync
+unsafe impl<T: ForLifetime> Sync for ListenerItem<T> {}
+
 impl<T: ForLifetime> ListenerItem<T> {
-    fn new<'a>(closure: NonNull<DynClosure<T>>) -> Self
-    where
-        T: 'a,
-    {
+    fn new(closure: Unique<DynClosure<T>>) -> Self {
         Self {
             done: false,
             waker: None,
 
             // SAFETY: Extend lifetime and manage manually, see ListenerItem::poll for safety requirement
-            closure_ptr: unsafe { mem::transmute::<NonNull<_>, NonNull<_>>(closure) },
+            closure_ptr: unsafe { mem::transmute::<Unique<_>, Unique<_>>(closure) },
         }
     }
 
@@ -123,9 +125,7 @@ impl<T: ForLifetime> ListenerItem<T> {
     }
 
     /// # Safety
-    /// Calling this method is only safe if
-    /// 1. Pointer of closure is valid
-    /// 2. When called on other thread, Sync bounds must be fulfilled
+    /// Calling this method is only safe if pointer to closure is valid
     pub unsafe fn poll(&mut self, event: T::Of<'_>) -> bool {
         let mut flow = ControlFlow {
             done: self.done,

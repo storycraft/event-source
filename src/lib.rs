@@ -78,7 +78,7 @@ impl<T: ForLifetime> EventSource<T> {
     /// Closure must be [`Sync`]
     pub fn on<F>(&self, listener: F) -> EventFnFuture<F, T>
     where
-        F: FnMut(T::Of<'_>, &mut ControlFlow) + Sync,
+        F: FnMut(T::Of<'_>, &mut ControlFlow) + Send + Sync,
     {
         EventFnFuture::new(self, listener)
     }
@@ -88,8 +88,8 @@ impl<T: ForLifetime> EventSource<T> {
     /// Unlike [`EventSource::on`] it will ignore every events once listener is done or returns with [`Option::Some`].
     pub async fn once<F, R>(&self, mut listener: F) -> Option<R>
     where
-        F: FnMut(T::Of<'_>, &mut ControlFlow) -> Option<R> + Sync,
-        R: Sync,
+        F: FnMut(T::Of<'_>, &mut ControlFlow) -> Option<R> + Send + Sync,
+        R: Send + Sync,
     {
         let mut out = None;
 
@@ -118,9 +118,9 @@ pub struct EventEmitter<'a, T: ForLifetime> {
 impl<T: ForLifetime> EventEmitter<'_, T> {
     /// Emit event to next listener
     pub fn emit_next(&mut self, event: T::Of<'_>) -> Option<()> {
-        let node = self.cursor.protected_mut()?.get_mut();
+        let node = self.cursor.protected_mut()?;
 
-        // SAFETY: Every listener closure is Sync and the pointer is valid
+        // SAFETY: Listener closure pointer is valid
         if unsafe { !node.poll(event) } {
             return None;
         }
