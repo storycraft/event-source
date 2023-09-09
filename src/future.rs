@@ -97,12 +97,6 @@ pub struct ListenerItem<T: ForLifetime> {
     closure_ptr: Unique<DynClosure<'static, T>>,
 }
 
-// SAFETY: Every data in ListenerItem is Send
-unsafe impl<T: ForLifetime> Send for ListenerItem<T> {}
-
-// SAFETY: Every data in ListenerItem is Sync
-unsafe impl<T: ForLifetime> Sync for ListenerItem<T> {}
-
 impl<T: ForLifetime> ListenerItem<T> {
     fn new(closure: Unique<DynClosure<T>>) -> Self {
         Self {
