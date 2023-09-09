@@ -4,6 +4,8 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
+use core::ptr::NonNull;
+
 #[derive(Debug)]
 pub struct Sealed<T: ?Sized>(T);
 
@@ -14,10 +16,7 @@ impl<T> Sealed<T> {
 }
 
 impl<T: ?Sized> Sealed<T> {
-    pub fn get_mut(&mut self) -> &mut T {
-        &mut self.0
+    pub fn get_ptr_mut(&mut self) -> NonNull<T> {
+        NonNull::from(&mut self.0)
     }
 }
-
-// SAFETY: Getting inner value without using pointer is impossible
-unsafe impl<T: ?Sized> Sync for Sealed<T> {}

@@ -10,8 +10,8 @@
 #[doc(hidden)]
 pub mod __private;
 mod future;
-mod sealed;
 mod types;
+mod sealed;
 
 pub use future::{ControlFlow, EventFnFuture};
 
@@ -118,7 +118,7 @@ pub struct EventEmitter<'a, T: ForLifetime> {
 impl<T: ForLifetime> EventEmitter<'_, T> {
     /// Emit event to next listener
     pub fn emit_next(&mut self, event: T::Of<'_>) -> Option<()> {
-        let node = self.cursor.protected_mut()?;
+        let node = self.cursor.protected_mut()?.get_mut();
 
         // SAFETY: Every listener closure is Sync and the pointer is valid
         if unsafe { !node.poll(event) } {

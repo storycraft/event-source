@@ -4,11 +4,13 @@
  * Copyright (c) storycraft. Licensed under the MIT Licence.
  */
 
+use sync_wrapper::SyncWrapper;
+
 use crate::future::ListenerItem;
 
 pub(crate) type NodeTypes<T> = dyn pin_list::Types<
     Id = pin_list::id::Unchecked,
-    Protected = ListenerItem<T>,
+    Protected = SyncWrapper<ListenerItem<T>>,
     Unprotected = (),
     Removed = (),
 >;

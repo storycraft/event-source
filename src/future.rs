@@ -13,6 +13,7 @@ use core::{
 };
 
 use higher_kinded_types::ForLifetime;
+use sync_wrapper::SyncWrapper;
 
 use crate::{sealed::Sealed, types::Node, EventSource};
 
@@ -53,9 +54,7 @@ impl<'a, T: ForLifetime, F> EventFnFuture<'a, F, T> {
     }
 }
 
-impl<'a, T: ForLifetime, F: FnMut(T::Of<'_>, &mut ControlFlow)> Future
-    for EventFnFuture<'a, F, T>
-{
+impl<'a, T: ForLifetime, F: FnMut(T::Of<'_>, &mut ControlFlow)> Future for EventFnFuture<'a, F, T> {
     type Output = ();
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -65,11 +64,16 @@ impl<'a, T: ForLifetime, F: FnMut(T::Of<'_>, &mut ControlFlow)> Future
         let node = {
             let initialized = match this.node.as_mut().initialized_mut() {
                 Some(initialized) => initialized,
-                None => list.push_back(this.node, ListenerItem::new(this.listener.get_mut()), ()),
+                None => list.push_back(
+                    this.node,
+                    SyncWrapper::new(ListenerItem::new(this.listener.get_ptr_mut())),
+                    (),
+                ),
             };
 
             initialized.protected_mut(&mut list).unwrap()
-        };
+        }
+        .get_mut();
 
         if node.done {
             return Poll::Ready(());
@@ -94,11 +98,8 @@ pub struct ListenerItem<T: ForLifetime> {
 // SAFETY: Every data in ListenerItem is Send
 unsafe impl<T: ForLifetime> Send for ListenerItem<T> {}
 
-// SAFETY: ListenerItem is opaque without mutable access
-unsafe impl<T: ForLifetime> Sync for ListenerItem<T> {}
-
 impl<T: ForLifetime> ListenerItem<T> {
-    fn new<'a>(closure: &'a mut DynClosure<T>) -> Self
+    fn new<'a>(closure: NonNull<DynClosure<T>>) -> Self
     where
         T: 'a,
     {
@@ -106,10 +107,8 @@ impl<T: ForLifetime> ListenerItem<T> {
             done: false,
             waker: None,
 
-            // SAFETY: Extend lifetime, see ListenerItem::poll for safety requirement
-            closure_ptr: unsafe {
-                mem::transmute::<NonNull<_>, NonNull<_>>(NonNull::from(closure))
-            },
+            // SAFETY: Extend lifetime and manage manually, see ListenerItem::poll for safety requirement
+            closure_ptr: unsafe { mem::transmute::<NonNull<_>, NonNull<_>>(closure) },
         }
     }
 

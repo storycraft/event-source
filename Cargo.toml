@@ -14,6 +14,7 @@ higher-kinded-types = "0.1.1"
 parking_lot = "0.12.1"
 pin-list = "0.1.0"
 pin-project-lite = "0.2.13"
+sync_wrapper = "0.1.2"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
